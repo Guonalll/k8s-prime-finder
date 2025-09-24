@@ -1,16 +1,17 @@
-name: Docker Build and Push to Docker Hub
+name: Docker Build, Push, and Package
 
-# 当有代码被推送到 main 分支时，自动触发
 on:
   push:
     branches: [ "main" ]
+  # 允许我们从网页上手动触发
+  workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest # 使用一个标准的Ubuntu云服务器
+    runs-on: ubuntu-latest
 
     steps:
-    # 第一步：下载您的代码到云服务器
+    # 第一步：下载您的代码
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -21,11 +22,22 @@ jobs:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-    # 第三步：构建并推送Docker镜像
+    # 第三步：构建并推送Docker镜像 (和之前一样)
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
       with:
         context: .
-        # 将镜像推送到您的仓库，标签为 latest
         push: true
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/prime-finder:latest
+
+    # --- 新增步骤 ---
+    # 第四步：将刚刚构建好的Docker镜像，从Docker的内部存储中导出为一个 .tar 文件
+    - name: Save Docker image to a tar file
+      run: docker save ${{ secrets.DOCKERHUB_USERNAME }}/prime-finder:latest -o prime-finder.tar
+
+    # 第五步：将这个 .tar 文件作为“产物(Artifact)”上传，这样我们就能在网页上下载它了
+    - name: Upload image tar as an artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: prime-finder-image-tar
+        path: prime-finder.tar
